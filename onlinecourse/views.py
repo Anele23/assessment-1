@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 # <HINT> Import any new Models here
-from .models import Course, Enrollment
+from .models import Course, Enrollment, Submission
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -110,7 +110,43 @@ def enroll(request, course_id):
          # Collect the selected choices from exam form
          # Add each selected choice object to the submission object
          # Redirect to show_exam_result with the submission id
-#def submit(request, course_id):
+
+def submit(request, course_id):
+    # Get the current user
+    user = request.user
+
+    # Get the course object
+    course = get_object_or_404(Course, id=course_id)
+
+    # Get the associated enrollment object
+    enrollment = get_object_or_404(Enrollment, user=user, course=course)
+
+    if request.method == 'POST':
+        # Create a new submission object referring to the enrollment
+        submission = Submission.objects.create(enrollment=enrollment)
+
+        # Process the submitted form data
+        for question in course.exam.questions.all():
+            # Get the selected choices for each question
+            selected_choices = request.POST.getlist(f'question_{question.id}_choices')
+
+            # Assign the selected choices to the submission object
+            submission.choices.add(*selected_choices)
+
+        # Calculate the score based on the correct answers and selected choices
+        score = 0#calculate_score(submission)
+
+        # Update the submission object with the calculated score
+        submission.score = score
+        submission.save()
+
+        # Redirect to a success page or any other desired action
+        return redirect('onlinecourse:submission_success')
+
+    # Handle the case where the request method is not POST (e.g., GET request)
+    # You may render a template with the exam form for submission
+
+    return render(request, 'onlinecourse/exam_submission.html', {'course': course})
 
 
 # <HINT> A example method to collect the selected choices from the exam form from the request object
@@ -130,7 +166,44 @@ def enroll(request, course_id):
         # Get the selected choice ids from the submission record
         # For each selected choice, check if it is a correct answer or not
         # Calculate the total score
-#def show_exam_result(request, course_id, submission_id):
+def show_exam_result(request, course_id, submission_id):
+    # Get the course and submission based on their IDs
+    course = get_object_or_404(Course, id=course_id)
+    submission = get_object_or_404(Submission, id=submission_id, enrollment__course=course)
 
+    # Get the selected choice IDs from the submission record
+    selected_choices = submission.choices.all()
 
+    # Initialize variables for the total score and question results
+    total_score = 0
+    question_results = []
 
+    # Iterate over the selected choices and check if they are correct answers or not
+    for choice in selected_choices:
+        question = choice.question
+        is_correct = choice.is_correct
+        score = question.grade_point if is_correct else 0
+        total_score += score
+
+        # Store the result for each question
+        question_result = {
+            'question': question,
+            'selected_choice': choice,
+            'is_correct': is_correct,
+            'score': score,
+        }
+        question_results.append(question_result)
+
+    # Determine if the learner passed the exam based on a passing threshold (e.g., total_score >= passing_score)
+    passing_score = 70  # Adjust this value according to your passing criteria
+    passed_exam = total_score >= passing_score
+
+    context = {
+        'course': course,
+        'submission': submission,
+        'total_score': total_score,
+        'question_results': question_results,
+        'passed_exam': passed_exam,
+    }
+
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
