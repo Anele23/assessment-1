@@ -1,50 +1,34 @@
 from django.contrib import admin
-# <HINT> Import any new Models here
-from .models import Course, Lesson, Instructor, Learner, Question, Choice
-
-# <HINT> Register QuestionInline and ChoiceInline classes here
-class QuestionInline(admin.StackedInline):
-    model = Question
-    extra = 4
+from .models import Course, Lesson, Instructor, Learner, Question, Choice, Submission
 
 class ChoiceInline(admin.StackedInline):
     model = Choice
     extra = 4
- 
+
+class QuestionInline(admin.StackedInline):
+    model = Question
+    extra = 5
+
 class LessonInline(admin.StackedInline):
     model = Lesson
     extra = 5
 
-
-# Register your models here.
-class QuestionAdmin(admin.ModelAdmin):
-    inlines = [QuestionInline]
-    list_display = ('course','grade_point','content')
-    list_filter = ['course']
-    search_fields = ['course']
-
-class ChoiceInline(admin.ModelAdmin):
-    inlines = [ChoiceInline]
-    list_display = ('question','content','is_correct')
-    list_filter = ['is_correct']
-    search_fields = ['question']
-
-class CourseAdmin(admin.ModelAdmin):
-    inlines = [LessonInline]
+class CustomCourseAdmin(admin.ModelAdmin):
+    inlines = [LessonInline, QuestionInline]
     list_display = ('name', 'pub_date')
     list_filter = ['pub_date']
     search_fields = ['name', 'description']
 
-
-class LessonAdmin(admin.ModelAdmin):
+class CustomLessonAdmin(admin.ModelAdmin):
     list_display = ['title']
 
+class CustomQuestionAdmin(admin.ModelAdmin):
+    inlines = [ChoiceInline]
 
-# <HINT> Register Question and Choice models here
-
-admin.site.register(Course, CourseAdmin)
-admin.site.register(Lesson, LessonAdmin)
+admin.site.register(Course, CustomCourseAdmin)
+admin.site.register(Lesson, CustomLessonAdmin)
 admin.site.register(Instructor)
 admin.site.register(Learner)
-admin.site.register(Question,QuestionAdmin)
-admin.site.register(Choice, ChoiceInline)
+admin.site.register(Question, CustomQuestionAdmin)
+admin.site.register(Choice)
+admin.site.register(Submission)
